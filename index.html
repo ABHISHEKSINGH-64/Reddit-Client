@@ -7,22 +7,52 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Reddit client</p>
+        <h1>Your subreddit board</h1>
+      </div>
+      <p class="lane-count" id="lane-count">0 lanes</p>
+    </header>
+
     <!--
-      JavaScript inserts one lane per subreddit, just before the plus column.
-      The plus button and the popup stay in the page because they never change.
+      JavaScript inserts one lane per subreddit, just before the add card.
     -->
     <main class="board">
+      <section class="empty-state" id="empty-state" hidden>
+        <h2>No lanes yet</h2>
+        <p>Add a subreddit to start a column of posts.</p>
+      </section>
+
       <section class="add-column" aria-label="Add a subreddit">
-        <button class="add-button" id="add-button" type="button" aria-label="Add subreddit">+</button>
+        <button class="add-button" id="add-button" type="button">
+          <span class="add-icon" aria-hidden="true">+</span>
+          <span class="add-label">Add subreddit</span>
+        </button>
       </section>
     </main>
 
     <div class="popup-backdrop" id="popup-backdrop" hidden>
       <form class="popup" id="subreddit-form">
-        <h2>Enter the name of subreddit</h2>
-        <input id="subreddit-input" type="text" name="subreddit" aria-label="Subreddit name">
+        <div class="popup-heading">
+          <div>
+            <h2>Add a subreddit</h2>
+            <p>Use the name only, such as javascript.</p>
+          </div>
+          <button class="popup-close" id="popup-close" type="button" aria-label="Close">×</button>
+        </div>
+
+        <label class="field" for="subreddit-input">Subreddit</label>
+        <div class="field-input">
+          <span class="field-prefix" aria-hidden="true">r/</span>
+          <input id="subreddit-input" type="text" name="subreddit" placeholder="learnprogramming" autocomplete="off">
+        </div>
         <p class="popup-error" id="popup-error" hidden></p>
-        <button type="submit">Add Subreddit</button>
+
+        <div class="popup-actions">
+          <button class="button-ghost" id="popup-cancel" type="button">Cancel</button>
+          <button class="button-primary" type="submit">Add subreddit</button>
+        </div>
       </form>
     </div>
 

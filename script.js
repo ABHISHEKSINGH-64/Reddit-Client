@@ -8,13 +8,19 @@ const STORAGE_KEY = "reddit-lanes";
 const STARTER_LANES = ["learnprogramming", "javascript"];
 const POST_LIMIT = 10;
 
+const LANE_COLORS = ["#ff4500", "#0079d3", "#46d160", "#7c5cff", "#ff585b", "#0ea5a0"];
+
 const board = document.querySelector(".board");
 const addColumn = document.querySelector(".add-column");
+const emptyState = document.querySelector("#empty-state");
+const laneCount = document.querySelector("#lane-count");
 const addButton = document.querySelector("#add-button");
 const popupBackdrop = document.querySelector("#popup-backdrop");
 const subredditForm = document.querySelector("#subreddit-form");
 const subredditInput = document.querySelector("#subreddit-input");
 const popupError = document.querySelector("#popup-error");
+const popupClose = document.querySelector("#popup-close");
+const popupCancel = document.querySelector("#popup-cancel");
 
 // Saved data is only the names. Posts are loaded again on each visit.
 function loadLanes() {
@@ -158,6 +164,11 @@ function addLane(input) {
   saveLanes();
   closePopup();
   render();
+  board.querySelector(`[aria-label="r/${result.name}"]`)?.scrollIntoView({
+    behavior: "smooth",
+    inline: "end",
+    block: "nearest"
+  });
   loadLane(result.name);
 }
 
@@ -199,6 +210,8 @@ async function loadLane(name) {
 
 function render() {
   board.querySelectorAll(".lane").forEach((lane) => lane.remove());
+  emptyState.hidden = lanes.length > 0;
+  laneCount.textContent = lanes.length === 1 ? "1 lane" : `${lanes.length} lanes`;
 
   lanes.forEach((lane) => {
     addColumn.before(renderLane(lane));
@@ -209,13 +222,20 @@ function renderLane(lane) {
   const section = document.createElement("section");
   section.className = "lane";
   section.setAttribute("aria-label", `r/${lane.name}`);
+  section.style.setProperty("--lane-accent", laneColor(lane.name));
 
   const header = document.createElement("header");
   header.className = "lane-header";
 
+  const heading = document.createElement("div");
   const title = document.createElement("h2");
   title.className = "lane-title";
-  title.textContent = `/r/${lane.name}`;
+  title.textContent = `r/${lane.name}`;
+
+  const meta = document.createElement("p");
+  meta.className = "lane-meta";
+  meta.textContent = laneMeta(lane);
+  heading.append(title, meta);
 
   const menu = document.createElement("div");
   menu.className = "menu";
@@ -224,6 +244,7 @@ function renderLane(lane) {
   menuButton.className = "menu-button";
   menuButton.type = "button";
   menuButton.setAttribute("aria-label", `Options for r/${lane.name}`);
+  menuButton.setAttribute("aria-expanded", String(openMenuName === lane.name));
   menuButton.textContent = "⋮";
   menuButton.addEventListener("click", () => openMenu(lane.name));
 
@@ -240,8 +261,9 @@ function renderLane(lane) {
   });
 
   const deleteButton = document.createElement("button");
+  deleteButton.className = "menu-delete";
   deleteButton.type = "button";
-  deleteButton.textContent = "Delete";
+  deleteButton.textContent = "Remove lane";
   deleteButton.addEventListener("click", () => {
     closeMenus();
     deleteLane(lane.name);
@@ -249,15 +271,15 @@ function renderLane(lane) {
 
   panel.append(refreshButton, deleteButton);
   menu.append(menuButton, panel);
-  header.append(title, menu);
+  header.append(heading, menu);
 
   const posts = document.createElement("div");
   posts.className = "posts";
 
-  if (lane.status === "loading") {
-    posts.append(statusRow("Loading…"));
+  if (lane.status === "loading" && lane.posts.length === 0) {
+    posts.append(skeletonList());
   } else if (lane.status === "error") {
-    posts.append(statusRow(lane.errorMessage, true));
+    posts.append(errorState(lane));
   } else if (lane.posts.length === 0) {
     posts.append(statusRow("No posts right now."));
   } else {
@@ -266,6 +288,25 @@ function renderLane(lane) {
 
   section.append(header, posts);
   return section;
+}
+
+function laneColor(name) {
+  const total = [...name].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return LANE_COLORS[total % LANE_COLORS.length];
+}
+
+function laneMeta(lane) {
+  if (lane.status === "loading" && lane.posts.length > 0) {
+    return "Updating…";
+  }
+  if (lane.status === "loading") {
+    return "Loading posts";
+  }
+  if (lane.status === "error") {
+    return "Unavailable";
+  }
+  const count = lane.posts.length;
+  return count === 1 ? "1 post" : `${count} posts`;
 }
 
 function renderPost(post) {
@@ -285,7 +326,7 @@ function renderPost(post) {
 
   const score = document.createElement("span");
   score.className = "score";
-  score.textContent = String(post.score);
+  score.textContent = formatScore(post.score);
 
   const title = document.createElement("span");
   title.className = "post-title";
@@ -296,11 +337,70 @@ function renderPost(post) {
   return link;
 }
 
-function statusRow(message, isError) {
+function formatScore(score) {
+  const value = Number(score) || 0;
+  const absolute = Math.abs(value);
+  if (absolute >= 10000) {
+    return `${Math.round(value / 1000)}k`;
+  }
+  if (absolute >= 1000) {
+    return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  }
+  return String(value);
+}
+
+function statusRow(message) {
   const row = document.createElement("p");
-  row.className = isError ? "lane-status error" : "lane-status";
+  row.className = "lane-status";
   row.textContent = message;
   return row;
+}
+
+function errorState(lane) {
+  const row = document.createElement("div");
+  row.className = "lane-status error";
+
+  const message = document.createElement("p");
+  message.textContent = lane.errorMessage;
+
+  const retry = document.createElement("button");
+  retry.className = "retry-button";
+  retry.type = "button";
+  retry.textContent = "Try again";
+  retry.addEventListener("click", () => refreshLane(lane.name));
+
+  row.append(message, retry);
+  return row;
+}
+
+function skeletonList() {
+  const list = document.createElement("div");
+  list.className = "skeleton-list";
+  list.setAttribute("aria-hidden", "true");
+
+  for (let index = 0; index < 6; index += 1) {
+    const row = document.createElement("div");
+    row.className = "skeleton-row";
+
+    const vote = document.createElement("div");
+    vote.className = "skeleton skeleton-vote";
+
+    const lines = document.createElement("div");
+    const longLine = document.createElement("div");
+    longLine.className = "skeleton skeleton-line";
+    const shortLine = document.createElement("div");
+    shortLine.className = "skeleton skeleton-line short";
+    lines.append(longLine, shortLine);
+
+    row.append(vote, lines);
+    list.append(row);
+  }
+
+  const label = document.createElement("p");
+  label.className = "lane-status";
+  label.textContent = "Loading…";
+  list.append(label);
+  return list;
 }
 
 function openMenu(name) {
@@ -316,6 +416,9 @@ function closeMenus() {
   openMenuName = null;
   document.querySelectorAll(".menu-panel").forEach((panel) => {
     panel.hidden = true;
+  });
+  document.querySelectorAll(".menu-button").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
   });
 }
 
@@ -337,6 +440,8 @@ function showPopupError(message) {
 }
 
 addButton.addEventListener("click", openPopup);
+popupClose.addEventListener("click", closePopup);
+popupCancel.addEventListener("click", closePopup);
 
 subredditForm.addEventListener("submit", (event) => {
   event.preventDefault();
