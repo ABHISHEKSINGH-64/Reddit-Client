@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Client</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <!--
+      JavaScript inserts one lane per subreddit, just before the plus column.
+      The plus button and the popup stay in the page because they never change.
+    -->
+    <main class="board">
+      <section class="add-column" aria-label="Add a subreddit">
+        <button class="add-button" id="add-button" type="button" aria-label="Add subreddit">+</button>
+      </section>
+    </main>
+
+    <div class="popup-backdrop" id="popup-backdrop" hidden>
+      <form class="popup" id="subreddit-form">
+        <h2>Enter the name of subreddit</h2>
+        <input id="subreddit-input" type="text" name="subreddit" aria-label="Subreddit name">
+        <p class="popup-error" id="popup-error" hidden></p>
+        <button type="submit">Add Subreddit</button>
+      </form>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
